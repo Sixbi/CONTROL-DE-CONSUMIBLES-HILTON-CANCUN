@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consumibles · Hilton Mantenimiento</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg: #0f1117;
+  --bg2: #181c27;
+  --bg3: #1e2333;
+  --border: rgba(255,255,255,.07);
+  --border2: rgba(255,255,255,.12);
+  --text: #e8eaf0;
+  --text2: #8b92a8;
+  --text3: #565d75;
+  --accent: #4f7cff;
+  --accent2: #3d63e0;
+  --green: #22c98a;
+  --red: #f04d4d;
+  --yellow: #f5a623;
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+/* Layout */
+.layout{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:220px;min-width:220px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:0;transition:transform .3s}
+.sidebar-logo{padding:22px 20px 16px;border-bottom:1px solid var(--border)}
+.sidebar-logo .hotel{font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:2px}
+.sidebar-logo .title{font-size:16px;font-weight:600;color:var(--text)}
+.sidebar-logo .subtitle{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace}
+.sidebar-nav{padding:12px 10px;flex:1;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-sm);cursor:pointer;color:var(--text2);font-size:13px;font-weight:500;transition:all .15s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:rgba(79,124,255,.12);color:var(--accent)}
+.nav-item .icon{font-size:16px;width:20px;text-align:center;flex-shrink:0}
+.nav-item.locked{opacity:.35;cursor:not-allowed}
+.nav-section{font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);padding:12px 12px 5px;margin-top:4px}
+.sidebar-footer{padding:14px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--text3);font-family:'DM Mono',monospace}
+.cycle-badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;margin-top:4px}
+.cycle-capture{background:rgba(34,201,138,.12);color:var(--green)}
+.cycle-export{background:rgba(245,166,35,.12);color:var(--yellow)}
+.main{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.topbar{padding:14px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg);min-height:58px}
+.topbar-title{font-size:15px;font-weight:600}
+.topbar-sub{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:1px}
+.content{flex:1;overflow-y:auto;padding:20px 24px}
+
+/* Cards & metrics */
+.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.metric-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.metric-label{font-size:10px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--text3);margin-bottom:8px}
+.metric-value{font-size:26px;font-weight:600;font-family:'DM Mono',monospace;color:var(--text)}
+.metric-sub{font-size:11px;color:var(--text3);margin-top:3px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.card-title{font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--text3);margin-bottom:14px}
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+
+/* Bar chart */
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:11px}
+.bar-label{width:100px;text-align:right;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'DM Mono',monospace;font-size:10px}
+.bar-track{flex:1;background:var(--bg3);border-radius:3px;height:14px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;transition:width .5s cubic-bezier(.4,0,.2,1)}
+.bar-val{min-width:30px;color:var(--text2);font-family:'DM Mono',monospace;font-size:10px}
+
+/* Filters */
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.filter-input{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:12px;padding:7px 11px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .15s}
+.filter-input:focus{border-color:var(--accent)}
+.filter-input.search{flex:1;min-width:180px}
+select.filter-input option{background:var(--bg2)}
+
+/* Table */
+.table-wrap{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.table-scroll{max-height:400px;overflow-y:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead{position:sticky;top:0;z-index:2}
+th{background:var(--bg3);padding:8px 12px;text-align:left;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:8px 12px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle}
+td:first-child,th:first-child{color:var(--text3);font-family:'DM Mono',monospace;font-size:10px}
+tbody tr:hover td{background:var(--bg3);color:var(--text)}
+tbody tr:last-child td{border-bottom:none}
+.desc-cell{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)!important}
+.pager{display:flex;align-items:center;gap:8px;padding:10px 0 0;justify-content:flex-end;font-size:11px;color:var(--text3);font-family:'DM Mono',monospace}
+
+/* Badge */
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;white-space:nowrap}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;white-space:nowrap}
+.btn:hover{background:var(--bg2);border-color:var(--border2)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent2)}
+.btn-success{background:rgba(34,201,138,.15);border-color:rgba(34,201,138,.3);color:var(--green)}
+.btn-success:hover{background:rgba(34,201,138,.25)}
+.btn-danger{background:rgba(240,77,77,.12);border-color:rgba(240,77,77,.3);color:var(--red)}
+.btn-danger:hover{background:rgba(240,77,77,.22)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* Sol form */
+.sol-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.field label{display:block;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:5px}
+.field input,.field select,.field textarea{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:12px;padding:8px 11px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .15s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent)}
+.field select option{background:var(--bg2)}
+.field textarea{resize:vertical;min-height:60px}
+.field.full{grid-column:1/-1}
+
+/* Status messages */
+.status{padding:10px 14px;border-radius:var(--radius-sm);font-size:12px;margin-bottom:12px;display:flex;align-items:flex-start;gap:8px}
+.status-icon{flex-shrink:0;margin-top:1px}
+.status.info{background:rgba(79,124,255,.1);border:1px solid rgba(79,124,255,.2);color:#a0b4ff}
+.status.success{background:rgba(34,201,138,.08);border:1px solid rgba(34,201,138,.2);color:#5ddba8}
+.status.error{background:rgba(240,77,77,.08);border:1px solid rgba(240,77,77,.2);color:#f87a7a}
+.status.warn{background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.2);color:#f5c76a}
+
+/* Freq */
+.freq-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.freq-item{display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
+.freq-rank{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'DM Mono',monospace}
+.freq-rank.top3{background:var(--green)}
+.freq-name{flex:1;font-size:11px;line-height:1.4;color:var(--text2)}
+.freq-val{text-align:right;font-family:'DM Mono',monospace;font-size:12px;font-weight:600;color:var(--text);white-space:nowrap}
+
+/* Stock */
+.edit-num{background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:11px;padding:3px 6px;width:60px;font-family:'DM Mono',monospace;outline:none}
+.edit-num:focus{border-color:var(--accent)}
+
+/* Norm */
+.norm-card{background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--radius);padding:12px;margin-bottom:8px;transition:opacity .2s}
+.norm-var{font-size:11px;color:var(--text3);margin-left:12px;margin-top:2px;font-family:'DM Mono',monospace}
+
+/* Upload */
+.dropzone{border:2px dashed var(--border2);border-radius:var(--radius);padding:32px;text-align:center;cursor:pointer;transition:all .2s}
+.dropzone:hover{border-color:var(--accent);background:rgba(79,124,255,.04)}
+.dropzone input{display:none}
+
+/* Modal PIN */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:100}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:32px;min-width:300px;text-align:center}
+.pin-input{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-size:24px;letter-spacing:8px;padding:12px;width:200px;text-align:center;font-family:'DM Mono',monospace;outline:none;margin:16px 0}
+.pin-input:focus{border-color:var(--accent)}
+
+/* Mobile */
+.hamburger{display:none;background:none;border:none;cursor:pointer;padding:8px;color:var(--text)}
+.sidebar-overlay{display:none}
+
+@media(max-width:768px){
+  .sidebar{position:fixed;left:0;top:0;height:100vh;z-index:50;transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-overlay{display:block;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:49;display:none}
+  .sidebar-overlay.show{display:block}
+  .hamburger{display:flex}
+  .metric-grid{grid-template-columns:1fr 1fr}
+  .chart-grid{grid-template-columns:1fr}
+  .freq-grid{grid-template-columns:1fr}
+  .sol-grid{grid-template-columns:1fr}
+  .content{padding:14px}
+  .topbar{padding:10px 14px}
+}
+@media(max-width:480px){
+  .metric-grid{grid-template-columns:1fr 1fr}
+  .metric-value{font-size:20px}
+}
+
+.section-head{font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--text3);margin:18px 0 10px}
+.blocked{text-align:center;padding:48px 24px;color:var(--text3)}
+.blocked-icon{font-size:40px;margin-bottom:12px}
+.blocked-title{font-size:16px;font-weight:600;color:var(--text2);margin-bottom:6px}
+</style>
+</head>
+<body>
+
+<div class="sidebar-overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="hotel">HILTON</div>
+      <div class="title">Consumibles</div>
+      <div class="subtitle">Mantenimiento · v2.1</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Análisis</div>
+      <button class="nav-item active" onclick="nav('dashboard',this)"><span class="icon">◈</span> Dashboard</button>
+      <button class="nav-item" onclick="nav('catalogo',this)"><span class="icon">≡</span> Catálogo</button>
+      <button class="nav-item" onclick="nav('frecuencia',this)"><span class="icon">↑</span> Frecuencia</button>
+      <button class="nav-item" onclick="nav('almacen',this)"><span class="icon">⬡</span> Stock / Almacén</button>
+      <div class="nav-section">Operación</div>
+      <button class="nav-item" id="nav-sol" onclick="nav('solicitudes',this)"><span class="icon">✦</span> Solicitudes</button>
+      <button class="nav-item" onclick="nav('carga',this)"><span class="icon">⊕</span> Cargar mes</button>
+      <div class="nav-section">Herramientas</div>
+      <button class="nav-item" onclick="nav('normalizar',this)"><span class="icon">✧</span> Normalizar IA</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div id="footer-date"></div>
+      <div id="footer-cycle"></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="hamburger" onclick="toggleSidebar()">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><rect y="3" width="20" height="2" rx="1"/><rect y="9" width="20" height="2" rx="1"/><rect y="15" width="20" height="2" rx="1"/></svg>
+        </button>
+        <div>
+          <div class="topbar-title" id="topbar-title">Dashboard</div>
+          <div class="topbar-sub" id="topbar-sub">Vista general del sistema</div>
+        </div>
+      </div>
+      <div id="topbar-actions"></div>
+    </div>
+
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div id="panel-dashboard">
+        <div class="metric-grid" id="metrics-row"></div>
+        <div class="chart-grid">
+          <div class="card"><div class="card-title">Solicitudes por categoría</div><div id="chart-cat"></div></div>
+          <div class="card"><div class="card-title">Solicitudes por mes</div><div id="chart-mes"></div></div>
+        </div>
+        <div class="card"><div class="card-title">Top 10 materiales · cantidad total</div><div id="chart-top"></div></div>
+      </div>
+
+      <!-- CATALOGO -->
+      <div id="panel-catalogo" style="display:none">
+        <div class="filter-row">
+          <input type="text" class="filter-input search" id="search-input" placeholder="Buscar material..." oninput="renderCatalog()">
+          <select class="filter-input" id="filter-cat" onchange="renderCatalog()"><option value="">Todas las categorías</option></select>
+          <select class="filter-input" id="filter-mes" onchange="renderCatalog()"><option value="">Todos los meses</option></select>
+          <select class="filter-input" id="filter-sup" onchange="renderCatalog()"><option value="">Todos los supervisores</option></select>
+        </div>
+        <div id="catalog-info" style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-bottom:8px"></div>
+        <div class="table-wrap"><div class="table-scroll">
+          <table><thead><tr><th>#</th><th>Descripción</th><th>Cat.</th><th>Cant.</th><th>Unidad</th><th>Supervisor</th><th>Cuenta</th><th>No.</th><th>Mes</th></tr></thead>
+          <tbody id="catalog-body"></tbody></table>
+        </div></div>
+        <div class="pager"><span id="page-info"></span>&nbsp;<button class="btn" style="padding:5px 10px;font-size:11px" onclick="changePage(-1)">← Ant</button><button class="btn" style="padding:5px 10px;font-size:11px" onclick="changePage(1)">Sig →</button></div>
+      </div>
+
+      <!-- FRECUENCIA -->
+      <div id="panel-frecuencia" style="display:none">
+        <div class="filter-row">
+          <select class="filter-input" id="freq-cat" onchange="renderFreq()"><option value="">Todas las categorías</option></select>
+          <select class="filter-input" id="freq-mes" onchange="renderFreq()"><option value="">Todos los meses</option></select>
+        </div>
+        <div class="freq-grid">
+          <div class="card"><div class="card-title">Por frecuencia de aparición</div><div id="freq-list-times"></div></div>
+          <div class="card"><div class="card-title">Por cantidad acumulada</div><div id="freq-list-qty"></div></div>
+        </div>
+      </div>
+
+      <!-- STOCK -->
+      <div id="panel-almacen" style="display:none">
+        <div class="filter-row">
+          <input type="text" class="filter-input search" id="stock-search" placeholder="Buscar material..." oninput="renderStock()">
+          <select class="filter-input" id="stock-cat" onchange="renderStock()"><option value="">Todas las categorías</option></select>
+          <div style="margin-left:auto"><button class="btn btn-success" onclick="exportStockXLSX()">⬇ Exportar Stock Excel</button></div>
+        </div>
+        <div class="table-wrap"><div class="table-scroll">
+          <table><thead><tr><th>#</th><th>Material</th><th>Cat.</th><th>Total hist.</th><th>Stock actual</th><th>Stock mínimo</th><th>Estado</th></tr></thead>
+          <tbody id="stock-body"></tbody></table>
+        </div></div>
+      </div>
+
+      <!-- SOLICITUDES -->
+      <div id="panel-solicitudes" style="display:none">
+        <div id="sol-blocked" style="display:none" class="blocked">
+          <div class="blocked-icon">🔒</div>
+          <div class="blocked-title">Período de captura cerrado</div>
+          <div style="font-size:12px;margin-bottom:16px">Estamos en la ventana de descarga (días 26–fin de mes).<br>Las solicitudes se reabren el 1 del próximo mes.</div>
+          <div id="sol-export-area"></div>
+        </div>
+        <div id="sol-open">
+          <div id="sol-status"></div>
+          <div class="section-head">Nueva solicitud</div>
+          <div class="sol-grid">
+            <div class="field"><label>Fecha</label><input type="date" id="sol-fecha"></div>
+            <div class="field"><label>Supervisor</label><select id="sol-sup"><option>Pedro</option><option>SEBASTIAN</option><option>ERICK GONZALEZ</option><option>YISEL RAMIREZ</option><option>aldo fritz</option><option>Otro</option></select></div>
+            <div class="field"><label>Categoría</label><select id="sol-cat"><option value="">Seleccionar...</option></select></div>
+            <div class="field"><label>Descripción del material</label><input type="text" id="sol-desc" placeholder="Nombre del material..."></div>
+            <div class="field"><label>Cantidad</label><input type="number" id="sol-qty" min="1" value="1"></div>
+            <div class="field"><label>Unidad</label><input type="text" id="sol-unidad" placeholder="PZA, ROLLO, M2..."></div>
+            <div class="field full"><label>Cuenta (Name Count)</label><select id="sol-cuenta"><option value="">Auto-detectar por categoría</option></select></div>
+            <div class="field full"><label>Notas / Observaciones</label><textarea id="sol-notas" placeholder="Marca, modelo, código..."></textarea></div>
+          </div>
+          <div class="btn-row" style="margin-bottom:20px">
+            <button class="btn btn-primary" onclick="addSolicitud()">+ Agregar a la lista</button>
+            <button class="btn btn-danger" onclick="clearSolicitudes()">🗑 Limpiar lista</button>
+          </div>
+          <div class="section-head">Lista de solicitudes <span id="sol-count" style="font-weight:400;color:var(--text3)"></span></div>
+          <div class="table-wrap" style="margin-bottom:12px"><div class="table-scroll" style="max-height:280px">
+            <table><thead><tr><th>#</th><th>Material</th><th>Cat.</th><th>Cant.</th><th>Unidad</th><th>Supervisor</th><th>Cuenta</th><th>No.</th><th></th></tr></thead>
+            <tbody id="sol-body"></tbody></table>
+          </div></div>
+          <div class="btn-row">
+            <button class="btn btn-success" id="btn-export-sol" onclick="tryExportSolicitud()">⬇ Exportar Solicitud Excel</button>
+            <span id="export-hint" style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CARGA -->
+      <div id="panel-carga" style="display:none">
+        <div class="section-head">Cargar nuevo mes</div>
+        <p style="font-size:12px;color:var(--text3);margin-bottom:16px">Sube el Excel del mes nuevo. El nombre del archivo debe incluir el mes (ej: <span style="font-family:'DM Mono',monospace;color:var(--text2)">JUNIO_CONSUMIBLES_HILTON.xlsx</span>).</p>
+        <div class="dropzone" onclick="document.getElementById('file-input').click()">
+          <input type="file" id="file-input" accept=".xlsx,.xls" onchange="handleFileUpload(this)">
+          <div style="font-size:32px;margin-bottom:10px">📂</div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:4px;color:var(--text)">Arrastra tu Excel aquí o haz clic</div>
+          <div style="font-size:12px;color:var(--text3)">Formatos: .xlsx / .xls · misma estructura que meses anteriores</div>
+        </div>
+        <div id="upload-status" style="margin-top:12px"></div>
+        <div class="section-head" style="margin-top:24px">Meses cargados</div>
+        <div id="meses-loaded" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      </div>
+
+      <!-- NORMALIZAR -->
+      <div id="panel-normalizar" style="display:none">
+        <div class="section-head">Normalización de materiales con IA</div>
+        <p style="font-size:12px;color:var(--text3);margin-bottom:16px">Claude analiza todas las descripciones y agrupa las que son el mismo producto con nombres distintos. Tú apruebas antes de aplicar.</p>
+        <div class="btn-row" style="margin-bottom:16px">
+          <button class="btn btn-primary" onclick="runNormalization()" id="btn-norm">✧ Analizar con IA</button>
+          <button class="btn" onclick="applyAllNorm()" id="btn-apply" style="display:none">✓ Aplicar aprobados</button>
+          <button class="btn btn-success" id="btn-export-norm" style="display:none" onclick="exportNormXLSX()">⬇ Exportar tabla</button>
+        </div>
+        <div id="norm-status"></div>
+        <div id="norm-results"></div>
+      </div>
+
+    </div><!-- end content -->
+  </div><!-- end main -->
+</div><!-- end layout -->
+
+<!-- PIN MODAL -->
+<div class="modal-bg" id="pin-modal" style="display:none">
+  <div class="modal">
+    <div style="font-size:28px;margin-bottom:8px">🔐</div>
+    <div style="font-size:16px;font-weight:600;margin-bottom:4px">Contraseña requerida</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:4px">Solo disponible días 26–fin de mes</div>
+    <input class="pin-input" type="password" id="pin-input" placeholder="••••••" maxlength="10">
+    <div id="pin-error" style="font-size:11px;color:var(--red);min-height:18px;margin-bottom:10px"></div>
+    <div class="btn-row" style="justify-content:center">
+      <button class="btn" onclick="closePin()">Cancelar</button>
+      <button class="btn btn-primary" onclick="validatePin()">Descargar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const PASS = '059914';
+const COUNTS_MAP = {"AC Maintenance":664110,"Building Supplies":664120,"Elevator Supplies":664140,"Fire and Other Safety Equipmen":664150,"Grounds Maint Landscaping":664160,"Heating Plumbing Equipment":664170,"Mechanical Equipment":664190,"Painting":664200,"Equipment Repairs":664230,"Refrigeration Repairs":664231,"Building Maintenance":664250,"General Electrical":664480,"Light Bulbs":664500,"Pool Maintenance":664530,"Repairs and Maintenance":664550,"Kitchen Equipment":692010,"Laundry Equipment":692020,"Auto Repairs and Maint":730270,"Operating Supplies":694040};
+const CAT_CUENTA = {PLOMERIA:"Heating Plumbing Equipment",CIVIL:"Building Supplies",HABITACIONES:"Building Supplies",FERRE:"Operating Supplies",ELECTRICO:"General Electrical",ILUMINACION:"Light Bulbs",COCINAS:"Kitchen Equipment",LAVANDERIA:"Laundry Equipment","AC.REFRI":"AC Maintenance",ACREFRI:"AC Maintenance",ELECTROMECANICA:"Mechanical Equipment",DOMOTICA:"General Electrical"};
+const PANELS = {dashboard:"Dashboard","catalogo":"Catálogo","frecuencia":"Frecuencia","almacen":"Stock / Almacén","solicitudes":"Solicitudes","carga":"Cargar mes","normalizar":"Normalizar IA"};
+const PANEL_SUB = {dashboard:"Vista general del sistema","catalogo":"Todos los registros con filtros","frecuencia":"Materiales más solicitados","almacen":"Control de inventario","solicitudes":"Captura y descarga de pedidos","carga":"Agregar meses nuevos","normalizar":"Unificación de nombres duplicados"};
+
+function catLabel(c){const m={FERRE:"Ferretería","AC.REFRI":"AC/Refri",ACREFRI:"AC/Refri",ELECTROMECANICA:"Electromec."};return m[c]||(c.charAt(0)+c.slice(1).toLowerCase());}
+const BADGE_STYLES = {CIVIL:"background:rgba(34,201,138,.12);color:#5ddba8",HABITACIONES:"background:rgba(147,112,219,.12);color:#c4a8ff",FERRE:"background:rgba(245,166,35,.12);color:#f5c76a",PLOMERIA:"background:rgba(79,124,255,.12);color:#a0b4ff",ELECTRICO:"background:rgba(240,77,77,.12);color:#f87a7a",COCINAS:"background:rgba(255,107,157,.12);color:#ffaac9","AC.REFRI":"background:rgba(64,200,100,.12);color:#7de8a0",ACREFRI:"background:rgba(64,200,100,.12);color:#7de8a0",DOMOTICA:"background:rgba(255,160,80,.12);color:#ffbf7a",ILUMINACION:"background:rgba(255,220,50,.12);color:#ffe57a",LAVANDERIA:"background:rgba(100,220,200,.12);color:#7de8d8",ELECTROMECANICA:"background:rgba(180,180,180,.12);color:#c0c0c0"};
+function badge(c){return `<span class="badge" style="${BADGE_STYLES[c]||'background:rgba(255,255,255,.06);color:#8b92a8'}">${catLabel(c)}</span>`;}
+const COLORS=['#4f7cff','#22c98a','#f5a623','#e060d0','#60c8e0','#f04d4d','#a060ff','#50c850','#ff8040','#40b0ff'];
+
+// Date
+const T = new Date();
+const DAY = T.getDate();
+const DAYS_IN_MONTH = new Date(T.getFullYear(), T.getMonth()+1, 0).getDate();
+const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const CURRENT_MONTH = MONTH_NAMES[T.getMonth()];
+const NEXT_MONTH = MONTH_NAMES[(T.getMonth()+1)%12];
+const IS_CAPTURE = DAY >= 1 && DAY <= 25;
+const IS_EXPORT = DAY >= 26;
+
+// State
+let DB = [], stockData = {}, solicitudes = [], normGroups = [], page = 1, PAGE = 30, filtered = [];
+
+// Base data (Marzo–Mayo)
+const BASE=[{"mes":"MARZO","categoria":"PLOMERIA","descripcion":"Llave de Control Tradicional 1/2\" FNPT X 1/2\" M. Angular IP-100 marca: coflex","cantidad":15,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"Heating Plumbing Equipment","no_count":664170},{"mes":"MARZO","categoria":"PLOMERIA","descripcion":"Fluxometro marca SLOAN de sensor modelo EBV500A","cantidad":5,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"Heating Plumbing Equipment","no_count":664170},{"mes":"MARZO","categoria":"PLOMERIA","descripcion":"Tuberia 2\" pvc ced 40","cantidad":3,"unidad":"PZA","supervisor":"Pedro","name_count":"Heating Plumbing Equipment","no_count":664170},{"mes":"MARZO","categoria":"ILUMINACION","descripcion":"Dicroica GU10 3000 K","cantidad":30,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"Light Bulbs","no_count":664500},{"mes":"MARZO","categoria":"ILUMINACION","descripcion":"Lampara T8 LEDVANCED 6000 K","cantidad":20,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"Light Bulbs","no_count":664500},{"mes":"MARZO","categoria":"ILUMINACION","descripcion":"ILLUX Luminario LED TL-1513.B27 3000K","cantidad":45,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"Light Bulbs","no_count":664500},{"mes":"MARZO","categoria":"ELECTRICO","descripcion":"Cinta aislante 3m","cantidad":20,"unidad":"ROLLO","supervisor":"SEBASTIAN","name_count":"General Electrical","no_count":664480},{"mes":"MARZO","categoria":"ELECTRICO","descripcion":"Contactos dúplex 2 polos mas tierra Vortex","cantidad":20,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"General Electrical","no_count":664480},{"mes":"MARZO","categoria":"ELECTRICO","descripcion":"Interruptor QO 2x30","cantidad":10,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"General Electrical","no_count":664480},{"mes":"MARZO","categoria":"ELECTRICO","descripcion":"Bateria para taladro Dewalt DCB205 20v","cantidad":7,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"General Electrical","no_count":664480},{"mes":"MARZO","categoria":"ELECTRICO","descripcion":"Tuberia conduit pesado 1/2","cantidad":10,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"General Electrical","no_count":664480},{"mes":"MARZO","categoria":"HABITACIONES","descripcion":"CERR. TESA PERFIL ANGOSTO MOD. 2241G-25","cantidad":15,"unidad":"PZA","supervisor":"YISEL RAMIREZ","name_count":"Building Supplies","no_count":664120},{"mes":"MARZO","categoria":"HABITACIONES","descripcion":"MANIJA TESA SERIE 300","cantidad":10,"unidad":"PZA","supervisor":"YISEL RAMIREZ","name_count":"Building Supplies","no_count":664120},{"mes":"MARZO","categoria":"HABITACIONES","descripcion":"Tapa wc american standard","cantidad":5,"unidad":"PZA","supervisor":"YISEL RAMIREZ","name_count":"Heating Plumbing Equipment","no_count":664170},{"mes":"MARZO","categoria":"HABITACIONES","descripcion":"Manguera para regadera","cantidad":5,"unidad":"PZA","supervisor":"YISEL RAMIREZ","name_count":"Heating Plumbing Equipment","no_count":664170},{"mes":"MARZO","categoria":"COCINAS","descripcion":"Valvula solenoide 3/4\" 110v BURKERT","cantidad":2,"unidad":"PZA","supervisor":"ERICK GONZALEZ","name_count":"Kitchen Equipment","no_count":692010},{"mes":"MARZO","categoria":"COCINAS","descripcion":"Trampa para tarjas acero inoxidable 2\"","cantidad":2,"unidad":"PZA","supervisor":"ERICK GONZALEZ","name_count":"Kitchen Equipment","no_count":692010},{"mes":"MARZO","categoria":"ELECTROMECANICA","descripcion":"Faja A-47","cantidad":3,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"Mechanical Equipment","no_count":664190},{"mes":"MARZO","categoria":"ELECTROMECANICA","descripcion":"Faja B-51","cantidad":3,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"Mechanical Equipment","no_count":664190},{"mes":"MARZO","categoria":"FERRE","descripcion":"BROCA CONCRETO 1/4 TRUPER 11203","cantidad":30,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"Operating Supplies","no_count":694040},{"mes":"MARZO","categoria":"FERRE","descripcion":"Cinta Teflon 1/2\"","cantidad":3,"unidad":"Caja","supervisor":"Pedro","name_count":"Operating Supplies","no_count":694040},{"mes":"MARZO","categoria":"FERRE","descripcion":"Tornillo autoperforante 8x1 punta broca","cantidad":200,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"Operating Supplies","no_count":694040},{"mes":"MARZO","categoria":"FERRE","descripcion":"Remaches pop 3/16 x 1/2\"","cantidad":200,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"Operating Supplies","no_count":694040},{"mes":"MARZO","categoria":"ACREFRI","descripcion":"Gas refrigerante 410A","cantidad":2,"unidad":"CILINDRO","supervisor":"SEBASTIAN","name_count":"AC Maintenance","no_count":664110},{"mes":"MARZO","categoria":"ACREFRI","descripcion":"Gas refrigerante 134A","cantidad":2,"unidad":"CILINDRO","supervisor":"SEBASTIAN","name_count":"AC Maintenance","no_count":664110},{"mes":"MARZO","categoria":"ACREFRI","descripcion":"Filtro secador","cantidad":5,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"AC Maintenance","no_count":664110},{"mes":"MARZO","categoria":"DOMOTICA","descripcion":"Control remoto habitación","cantidad":5,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"General Electrical","no_count":664480},{"mes":"MARZO","categoria":"DOMOTICA","descripcion":"Cable UTP cat 6","cantidad":2,"unidad":"ROLLO","supervisor":"SEBASTIAN","name_count":"General Electrical","no_count":664480},{"mes":"MARZO","categoria":"CIVIL","descripcion":"Cemento gris 50kg","cantidad":10,"unidad":"SAC","supervisor":"Pedro","name_count":"Building Supplies","no_count":664120},{"mes":"MARZO","categoria":"CIVIL","descripcion":"Tablaroca regular 1/2\"","cantidad":20,"unidad":"PZA","supervisor":"Pedro","name_count":"Building Supplies","no_count":664120},{"mes":"MARZO","categoria":"CIVIL","descripcion":"Pintura vinilica blanca 19lt","cantidad":5,"unidad":"CUBETA","supervisor":"Pedro","name_count":"Painting","no_count":664200},{"mes":"MARZO","categoria":"CIVIL","descripcion":"Block 15x20x40","cantidad":50,"unidad":"PZA","supervisor":"Pedro","name_count":"Building Supplies","no_count":664120},{"mes":"ABRIL","categoria":"PLOMERIA","descripcion":"Llave de Control Tradicional 1/2\" FNPT X 1/2\" M. Angular IP-100 marca: coflex","cantidad":15,"unidad":"PZA","supervisor":"PEDRO","name_count":"Heating Plumbing Equipment","no_count":664170},{"mes":"ABRIL","categoria":"PLOMERIA","descripcion":"Tuberia PPR 20 mm","cantidad":5,"unidad":"TRAMOS","supervisor":"PEDRO","name_count":"Heating Plumbing Equipment","no_count":664170},{"mes":"ABRIL","categoria":"PLOMERIA","descripcion":"Fluxometro SLOAN EBV-500-A","cantidad":3,"unidad":"PZA","supervisor":"PEDRO","name_count":"Heating Plumbing Equipment","no_count":664170},{"mes":"ABRIL","categoria":"FERRE","descripcion":"BROCA CONCRETO 1/4 TRUPER 11203","cantidad":30,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"Operating Supplies","no_count":694040},{"mes":"ABRIL","categoria":"FERRE","descripcion":"Tornillo autoperforante 8x1","cantidad":500,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"Operating Supplies","no_count":694040},{"mes":"ABRIL","categoria":"FERRE","descripcion":"Remaches pop 3/16 x 1/2\"","cantidad":200,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"Operating Supplies","no_count":694040},{"mes":"ABRIL","categoria":"ILUMINACION","descripcion":"Dicroica GU10 3000 K","cantidad":50,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"Light Bulbs","no_count":664500},{"mes":"ABRIL","categoria":"ILUMINACION","descripcion":"Lampara T8 LEDVANCED 6000 K","cantidad":10,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"Light Bulbs","no_count":664500},{"mes":"ABRIL","categoria":"ELECTRICO","descripcion":"Cinta aislante 3m","cantidad":10,"unidad":"ROLLO","supervisor":"SEBASTIAN","name_count":"General Electrical","no_count":664480},{"mes":"ABRIL","categoria":"ELECTRICO","descripcion":"Contactos dúplex 2 polos mas tierra Vortex","cantidad":20,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"General Electrical","no_count":664480},{"mes":"ABRIL","categoria":"ELECTRICO","descripcion":"Interruptor QO 2x30","cantidad":5,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"General Electrical","no_count":664480},{"mes":"ABRIL","categoria":"HABITACIONES","descripcion":"CERR. TESA PERFIL ANGOSTO MOD. 2241G-25","cantidad":15,"unidad":"PZA","supervisor":"YISEL RAMIREZ","name_count":"Building Supplies","no_count":664120},{"mes":"ABRIL","categoria":"HABITACIONES","descripcion":"Tapa wc american standard","cantidad":5,"unidad":"PZA","supervisor":"YISEL RAMIREZ","name_count":"Heating Plumbing Equipment","no_count":664170},{"mes":"ABRIL","categoria":"HABITACIONES","descripcion":"Manguera para regadera","cantidad":5,"unidad":"PZA","supervisor":"YISEL RAMIREZ","name_count":"Heating Plumbing Equipment","no_count":664170},{"mes":"ABRIL","categoria":"COCINAS","descripcion":"Valvula solenoide 3/4\" 110v BURKERT","cantidad":2,"unidad":"PZA","supervisor":"ERICK GONZALEZ","name_count":"Kitchen Equipment","no_count":692010},{"mes":"ABRIL","categoria":"COCINAS","descripcion":"Trampa para tarjas acero inoxidable 2\"","cantidad":3,"unidad":"PZA","supervisor":"ERICK GONZALEZ","name_count":"Kitchen Equipment","no_count":692010},{"mes":"ABRIL","categoria":"COCINAS","descripcion":"Termostato para refrigerador","cantidad":2,"unidad":"PZA","supervisor":"ERICK GONZALEZ","name_count":"Kitchen Equipment","no_count":692010},{"mes":"ABRIL","categoria":"AC.REFRI","descripcion":"Gas refrigerante 410A","cantidad":2,"unidad":"CILINDRO","supervisor":"SEBASTIAN","name_count":"AC Maintenance","no_count":664110},{"mes":"ABRIL","categoria":"AC.REFRI","descripcion":"Filtro secador","cantidad":5,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"AC Maintenance","no_count":664110},{"mes":"ABRIL","categoria":"CIVIL","descripcion":"Cemento gris 50kg","cantidad":10,"unidad":"SAC","supervisor":"Pedro","name_count":"Building Supplies","no_count":664120},{"mes":"ABRIL","categoria":"CIVIL","descripcion":"Tablaroca regular 1/2\"","cantidad":15,"unidad":"PZA","supervisor":"Pedro","name_count":"Building Supplies","no_count":664120},{"mes":"ABRIL","categoria":"CIVIL","descripcion":"Pintura vinilica blanca 19lt","cantidad":4,"unidad":"CUBETA","supervisor":"Pedro","name_count":"Painting","no_count":664200},{"mes":"ABRIL","categoria":"LAVANDERIA","descripcion":"Correa para lavadora Whirlpool","cantidad":3,"unidad":"PZA","supervisor":"ERICK GONZALEZ","name_count":"Laundry Equipment","no_count":692020},{"mes":"ABRIL","categoria":"LAVANDERIA","descripcion":"Rodamiento 6205 2RS","cantidad":4,"unidad":"PZA","supervisor":"ERICK GONZALEZ","name_count":"Laundry Equipment","no_count":692020},{"mes":"MAYO","categoria":"PLOMERIA","descripcion":"Tuberia PPR 20 mm","cantidad":10,"unidad":"TRAMOS","supervisor":"SEBASTIAN","name_count":"Heating Plumbing Equipment","no_count":664170},{"mes":"MAYO","categoria":"PLOMERIA","descripcion":"Llave de Control Tradicional 1/2\" FNPT X 1/2\" M. Angular IP-100 marca: coflex","cantidad":10,"unidad":"PZA","supervisor":"PEDRO","name_count":"Heating Plumbing Equipment","no_count":664170},{"mes":"MAYO","categoria":"PLOMERIA","descripcion":"Cinta teflon 1/2\"","cantidad":20,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"Heating Plumbing Equipment","no_count":664170},{"mes":"MAYO","categoria":"FERRE","descripcion":"BROCA CONCRETO 1/4 TRUPER 11203","cantidad":10,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"Operating Supplies","no_count":694040},{"mes":"MAYO","categoria":"FERRE","descripcion":"Tornillo autoperforante 8x1 punta broca","cantidad":300,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"Operating Supplies","no_count":694040},{"mes":"MAYO","categoria":"FERRE","descripcion":"Remaches pop 3/16 x 1/2\"","cantidad":200,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"Operating Supplies","no_count":694040},{"mes":"MAYO","categoria":"ELECTRICO","descripcion":"Cinta aislante 3m","cantidad":20,"unidad":"ROLLO","supervisor":"SEBASTIAN","name_count":"General Electrical","no_count":664480},{"mes":"MAYO","categoria":"ELECTRICO","descripcion":"Contactos dúplex 2 polos mas tierra Vortex","cantidad":30,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"General Electrical","no_count":664480},{"mes":"MAYO","categoria":"ELECTRICO","descripcion":"Interruptor QO 2x30","cantidad":10,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"General Electrical","no_count":664480},{"mes":"MAYO","categoria":"ILUMINACION","descripcion":"Dicroica GU10 3000 K","cantidad":50,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"Light Bulbs","no_count":664500},{"mes":"MAYO","categoria":"ILUMINACION","descripcion":"Lampara T8 LEDVANCED 6000 K","cantidad":20,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"Light Bulbs","no_count":664500},{"mes":"MAYO","categoria":"AC.REFRI","descripcion":"Gas refrigerante 410A","cantidad":2,"unidad":"CILINDRO","supervisor":"SEBASTIAN","name_count":"AC Maintenance","no_count":664110},{"mes":"MAYO","categoria":"AC.REFRI","descripcion":"Filtro secador","cantidad":5,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"AC Maintenance","no_count":664110},{"mes":"MAYO","categoria":"COCINAS","descripcion":"Valvula solenoide 3/4\" 110v BURKERT","cantidad":2,"unidad":"PZA","supervisor":"ERICK GONZALEZ","name_count":"Kitchen Equipment","no_count":692010},{"mes":"MAYO","categoria":"COCINAS","descripcion":"Trampa para tarjas acero inoxidable 2\"","cantidad":2,"unidad":"PZA","supervisor":"ERICK GONZALEZ","name_count":"Kitchen Equipment","no_count":692010},{"mes":"MAYO","categoria":"CIVIL","descripcion":"Cemento gris 50kg","cantidad":15,"unidad":"SAC","supervisor":"Pedro","name_count":"Building Supplies","no_count":664120},{"mes":"MAYO","categoria":"CIVIL","descripcion":"Tablaroca regular 1/2\"","cantidad":20,"unidad":"PZA","supervisor":"Pedro","name_count":"Building Supplies","no_count":664120},{"mes":"MAYO","categoria":"CIVIL","descripcion":"Pintura vinilica blanca 19lt","cantidad":6,"unidad":"CUBETA","supervisor":"Pedro","name_count":"Painting","no_count":664200},{"mes":"MAYO","categoria":"HABITACIONES","descripcion":"CERR. TESA PERFIL ANGOSTO MOD. 2241G-25","cantidad":15,"unidad":"PZA","supervisor":"YISEL RAMIREZ","name_count":"Building Supplies","no_count":664120},{"mes":"MAYO","categoria":"HABITACIONES","descripcion":"Manguera para regadera","cantidad":5,"unidad":"PZA","supervisor":"YISEL RAMIREZ","name_count":"Heating Plumbing Equipment","no_count":664170},{"mes":"MAYO","categoria":"LAVANDERIA","descripcion":"Correa para lavadora Whirlpool","cantidad":3,"unidad":"PZA","supervisor":"ERICK GONZALEZ","name_count":"Laundry Equipment","no_count":692020},{"mes":"MAYO","categoria":"DOMOTICA","descripcion":"Control remoto habitación","cantidad":5,"unidad":"PZA","supervisor":"SEBASTIAN","name_count":"General Electrical","no_count":664480},{"mes":"MAYO","categoria":"DOMOTICA","descripcion":"Cable UTP cat 6","cantidad":3,"unidad":"ROLLO","supervisor":"SEBASTIAN","name_count":"General Electrical","no_count":664480}];
+
+DB = [...BASE];
+
+function init(){
+  const cats=[...new Set(DB.map(d=>d.categoria))].sort();
+  const meses=[...new Set(DB.map(d=>d.mes))];
+  const sups=[...new Set(DB.map(d=>d.supervisor).filter(Boolean))].sort();
+  ['filter-cat','freq-cat','stock-cat','sol-cat'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;
+    while(el.options.length>1) el.remove(1);
+    cats.forEach(c=>el.add(new Option(catLabel(c),c)));
+  });
+  ['filter-mes','freq-mes'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;
+    while(el.options.length>1) el.remove(1);
+    meses.forEach(m=>el.add(new Option(m,m)));
+  });
+  const supEl=document.getElementById('filter-sup');
+  if(supEl){while(supEl.options.length>1)supEl.remove(1);sups.forEach(s=>supEl.add(new Option(s,s)));}
+  const cEl=document.getElementById('sol-cuenta');
+  if(cEl){while(cEl.options.length>1)cEl.remove(1);Object.keys(COUNTS_MAP).forEach(k=>cEl.add(new Option(k+' ('+COUNTS_MAP[k]+')',k)));}
+  document.getElementById('sol-fecha').value=T.toISOString().split('T')[0];
+  buildStockData();
+  renderMesesLoaded();
+  updateSidebar();
+  updateSolicitudesUI();
+}
+
+function updateSidebar(){
+  const d=T.toDate?T.toDate():T;
+  document.getElementById('footer-date').textContent=d.toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'});
+  const badge=IS_CAPTURE
+    ?`<span class="cycle-badge cycle-capture">Captura activa (1–25)</span>`
+    :`<span class="cycle-badge cycle-export">Descarga activa (26–${DAYS_IN_MONTH})</span>`;
+  document.getElementById('footer-cycle').innerHTML=badge;
+}
+
+function updateSolicitudesUI(){
+  const blocked=document.getElementById('sol-blocked');
+  const open=document.getElementById('sol-open');
+  const exportBtn=document.getElementById('btn-export-sol');
+  const hint=document.getElementById('export-hint');
+  if(IS_CAPTURE){
+    blocked.style.display='none';
+    open.style.display='block';
+    const st=document.getElementById('sol-status');
+    if(st) st.innerHTML=`<div class="status info"><span class="status-icon">📅</span><span>Período de solicitudes activo — día ${DAY} de ${DAYS_IN_MONTH}. Solicitudes de <strong>${CURRENT_MONTH}</strong> se compran en <strong>${NEXT_MONTH}</strong>. Descarga disponible del 26 al ${DAYS_IN_MONTH}.</span></div>`;
+    if(exportBtn){exportBtn.disabled=true;}
+    if(hint) hint.textContent=`Descarga habilitada del día 26 al ${DAYS_IN_MONTH}.`;
+  } else {
+    blocked.style.display='block';
+    open.style.display='none';
+    const area=document.getElementById('sol-export-area');
+    if(area) area.innerHTML=`<button class="btn btn-success" onclick="tryExportSolicitud()" style="margin:0 auto">⬇ Descargar reporte Excel</button>`;
+  }
+}
+
+function nav(id, btn){
+  document.querySelectorAll('[id^="panel-"]').forEach(p=>p.style.display='none');
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+id).style.display='block';
+  if(btn) btn.classList.add('active');
+  document.getElementById('topbar-title').textContent=PANELS[id]||id;
+  document.getElementById('topbar-sub').textContent=PANEL_SUB[id]||'';
+  if(id==='catalogo') renderCatalog();
+  if(id==='frecuencia') renderFreq();
+  if(id==='almacen') renderStock();
+  if(id==='solicitudes'){updateSolicitudesUI();renderSolicitudes();}
+  if(id==='dashboard') renderDashboard();
+  closeSidebar();
+}
+
+function renderDashboard(){
+  const totalUds=DB.reduce((s,d)=>s+(d.cantidad||0),0);
+  const meses=new Set(DB.map(d=>d.mes)).size;
+  document.getElementById('metrics-row').innerHTML=`
+    <div class="metric-card"><div class="metric-label">Total registros</div><div class="metric-value">${DB.length.toLocaleString()}</div><div class="metric-sub">${meses} meses cargados</div></div>
+    <div class="metric-card"><div class="metric-label">Unidades totales</div><div class="metric-value">${Math.round(totalUds).toLocaleString()}</div></div>
+    <div class="metric-card"><div class="metric-label">Solicitudes</div><div class="metric-value">${solicitudes.length}</div><div class="metric-sub">pendientes de descarga</div></div>
+    <div class="metric-card"><div class="metric-label">Ciclo ${IS_CAPTURE?'captura':'descarga'}</div><div class="metric-value" style="font-size:16px;margin-top:4px">${IS_CAPTURE?'Días 1–25':'Días 26–'+DAYS_IN_MONTH}</div><div class="metric-sub">Día actual: ${DAY}</div></div>`;
+  const catC={};DB.forEach(d=>{catC[d.categoria]=(catC[d.categoria]||0)+1;});
+  const sc=Object.entries(catC).sort((a,b)=>b[1]-a[1]);
+  const maxC=sc[0]?.[1]||1;
+  document.getElementById('chart-cat').innerHTML=sc.map(([c,n],i)=>`<div class="bar-row"><div class="bar-label" title="${catLabel(c)}">${catLabel(c)}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/maxC*100)}%;background:${COLORS[i%COLORS.length]}"></div></div><div class="bar-val">${n}</div></div>`).join('');
+  const mesC={};DB.forEach(d=>{mesC[d.mes]=(mesC[d.mes]||0)+1;});
+  const maxM=Math.max(...Object.values(mesC));
+  document.getElementById('chart-mes').innerHTML=Object.entries(mesC).map(([m,n],i)=>`<div class="bar-row"><div class="bar-label">${m}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/maxM*100)}%;background:${COLORS[i%COLORS.length]}"></div></div><div class="bar-val">${n}</div></div>`).join('');
+  const dQ={};DB.forEach(d=>{if(d.descripcion) dQ[d.descripcion]=(dQ[d.descripcion]||0)+(d.cantidad||0);});
+  const top=Object.entries(dQ).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const maxT=top[0]?.[1]||1;
+  document.getElementById('chart-top').innerHTML=top.map(([desc,n],i)=>`<div class="bar-row"><div class="bar-label" title="${desc}" style="font-size:10px">${desc.length>30?desc.slice(0,30)+'…':desc}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/maxT*100)}%;background:${COLORS[i%COLORS.length]}"></div></div><div class="bar-val">${Math.round(n)}</div></div>`).join('');
+}
+
+function buildStockData(){
+  const g={};
+  DB.forEach(d=>{const k=d.categoria+'|||'+d.descripcion;if(!g[k]) g[k]={cat:d.categoria,desc:d.descripcion,total:0,unidad:d.unidad};g[k].total+=(d.cantidad||0);});
+  Object.values(g).forEach(v=>{if(!stockData[v.cat]) stockData[v.cat]={};if(!stockData[v.cat][v.desc]) stockData[v.cat][v.desc]={desc:v.desc,unidad:v.unidad,total:0,stock:0,minimo:0};stockData[v.cat][v.desc].total=Math.round(v.total);});
+}
+
+function getFiltered(){
+  const q=(document.getElementById('search-input')||{}).value?.toLowerCase()||'';
+  const cat=(document.getElementById('filter-cat')||{}).value||'';
+  const mes=(document.getElementById('filter-mes')||{}).value||'';
+  const sup=(document.getElementById('filter-sup')||{}).value||'';
+  return DB.filter(d=>(cat?d.categoria===cat:true)&&(mes?d.mes===mes:true)&&(sup?d.supervisor===sup:true)&&(q?d.descripcion?.toLowerCase().includes(q):true));
+}
+
+function renderCatalog(){
+  filtered=getFiltered();
+  const total=filtered.length,pages=Math.max(1,Math.ceil(total/PAGE));
+  if(page>pages) page=1;
+  const slice=filtered.slice((page-1)*PAGE,page*PAGE);
+  document.getElementById('catalog-info').textContent=`${total} registros`;
+  document.getElementById('page-info').textContent=`Pág ${page} / ${pages}`;
+  const tbody=document.getElementById('catalog-body');
+  if(!slice.length){tbody.innerHTML=`<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3)">Sin resultados</td></tr>`;return;}
+  tbody.innerHTML=slice.map((d,i)=>`<tr><td>${(page-1)*PAGE+i+1}</td><td class="desc-cell" title="${d.descripcion||''}">${d.descripcion||'—'}</td><td>${badge(d.categoria)}</td><td style="font-family:'DM Mono',monospace;font-weight:600;color:var(--text)">${d.cantidad??'—'}</td><td style="color:var(--text3)">${d.unidad||'—'}</td><td>${d.supervisor||'—'}</td><td style="font-size:11px;color:var(--text3)">${d.name_count||'—'}</td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)">${d.no_count||'—'}</td><td style="font-family:'DM Mono',monospace;font-size:11px;font-weight:600">${d.mes}</td></tr>`).join('');
+}
+function changePage(d){page=Math.max(1,page+d);renderCatalog();}
+
+function renderFreq(){
+  const cat=(document.getElementById('freq-cat')||{}).value||'';
+  const mes=(document.getElementById('freq-mes')||{}).value||'';
+  const data=DB.filter(d=>(cat?d.categoria===cat:true)&&(mes?d.mes===mes:true));
+  const by={};data.forEach(d=>{if(!d.descripcion)return;if(!by[d.descripcion]) by[d.descripcion]={v:0,t:0,cat:d.categoria};by[d.descripcion].v++;by[d.descripcion].t+=(d.cantidad||0);});
+  const topV=Object.entries(by).sort((a,b)=>b[1].v-a[1].v).slice(0,20);
+  const topQ=Object.entries(by).sort((a,b)=>b[1].t-a[1].t).slice(0,20);
+  function rl(items,field,cont){
+    const max=items[0]?.[1][field]||1;
+    document.getElementById(cont).innerHTML=items.map(([desc,s],i)=>`<div class="freq-item"><div class="freq-rank ${i<3?'top3':''}">${i+1}</div><div style="flex:1">${badge(s.cat)}<div class="freq-name" style="margin-top:3px">${desc.length>60?desc.slice(0,60)+'…':desc}</div></div><div><div class="freq-val">${field==='v'?s.v+' m':Math.round(s.t)+' u'}</div><div style="width:50px;height:2px;background:var(--bg3);border-radius:2px;margin-top:4px;margin-left:auto"><div style="width:${Math.round(s[field]/max*100)}%;height:100%;background:var(--accent);border-radius:2px"></div></div></div></div>`).join('');
+  }
+  rl(topV,'v','freq-list-times');
+  rl(topQ,'t','freq-list-qty');
+}
+
+function renderStock(){
+  const q=(document.getElementById('stock-search')||{}).value?.toLowerCase()||'';
+  const cat=(document.getElementById('stock-cat')||{}).value||'';
+  const tbody=document.getElementById('stock-body');
+  let rows=[];
+  Object.entries(stockData).forEach(([categoria,items])=>{
+    if(cat&&categoria!==cat)return;
+    Object.entries(items).forEach(([desc,item])=>{if(q&&!desc.toLowerCase().includes(q))return;rows.push({categoria,desc,item});});
+  });
+  rows.sort((a,b)=>a.desc.localeCompare(b.desc));
+  if(!rows.length){tbody.innerHTML=`<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Sin resultados</td></tr>`;return;}
+  tbody.innerHTML=rows.map(({categoria,desc,item},idx)=>{
+    const alerta=item.minimo>0&&item.stock<=item.minimo;
+    const estado=alerta?`<span style="color:var(--red);font-size:11px;font-weight:600">⚠ Bajo mínimo</span>`:item.stock>0?`<span style="color:var(--green);font-size:11px">✓ OK</span>`:`<span style="color:var(--text3);font-size:11px">—</span>`;
+    return `<tr><td>${idx+1}</td><td class="desc-cell" title="${desc}">${desc.length>55?desc.slice(0,55)+'…':desc}</td><td>${badge(categoria)}</td><td style="font-family:'DM Mono',monospace;font-weight:600;color:var(--text)">${Math.round(item.total)}</td><td><input class="edit-num" type="number" value="${item.stock}" min="0" onchange="updateStock('${categoria}','${desc}','stock',this.value)"></td><td><input class="edit-num" type="number" value="${item.minimo}" min="0" onchange="updateStock('${categoria}','${desc}','minimo',this.value)"></td><td>${estado}</td></tr>`;
+  }).join('');
+}
+function updateStock(cat,desc,field,val){if(stockData[cat]&&stockData[cat][desc]){stockData[cat][desc][field]=parseFloat(val)||0;setTimeout(renderStock,80);}}
+
+function addSolicitud(){
+  const desc=document.getElementById('sol-desc').value.trim();
+  const cat=document.getElementById('sol-cat').value;
+  const qty=parseFloat(document.getElementById('sol-qty').value)||1;
+  const unidad=document.getElementById('sol-unidad').value.trim();
+  const sup=document.getElementById('sol-sup').value;
+  const fecha=document.getElementById('sol-fecha').value;
+  const notas=document.getElementById('sol-notas').value.trim();
+  let cn=document.getElementById('sol-cuenta').value||CAT_CUENTA[cat]||'Operating Supplies';
+  if(!desc){alert('Ingresa la descripción del material');return;}
+  if(!cat){alert('Selecciona una categoría');return;}
+  solicitudes.push({fecha,descripcion:desc,categoria:cat,cantidad:qty,unidad,supervisor:sup,name_count:cn,no_count:COUNTS_MAP[cn]||null,notas});
+  ['sol-desc','sol-notas'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('sol-qty').value='1';
+  document.getElementById('sol-unidad').value='';
+  renderSolicitudes();renderDashboard();
+}
+
+function renderSolicitudes(){
+  document.getElementById('sol-count').textContent=`(${solicitudes.length} items)`;
+  const tbody=document.getElementById('sol-body');
+  if(!solicitudes.length){tbody.innerHTML=`<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3)">Sin solicitudes. Agrega materiales arriba.</td></tr>`;return;}
+  tbody.innerHTML=solicitudes.map((s,i)=>`<tr><td>${i+1}</td><td class="desc-cell" title="${s.descripcion}">${s.descripcion.length>50?s.descripcion.slice(0,50)+'…':s.descripcion}</td><td>${badge(s.categoria)}</td><td style="font-family:'DM Mono',monospace;font-weight:600;color:var(--text)">${s.cantidad}</td><td style="color:var(--text3)">${s.unidad||'—'}</td><td>${s.supervisor}</td><td style="font-size:11px;color:var(--text3)">${s.name_count||'—'}</td><td style="font-family:'DM Mono',monospace;font-size:11px;font-weight:600">${s.no_count||'—'}</td><td><button class="btn btn-danger" style="padding:2px 7px;font-size:10px" onclick="solicitudes.splice(${i},1);renderSolicitudes();renderDashboard()">✕</button></td></tr>`).join('');
+}
+function clearSolicitudes(){if(confirm('¿Limpiar todas las solicitudes?')){solicitudes=[];renderSolicitudes();renderDashboard();}}
+
+function tryExportSolicitud(){
+  if(!IS_EXPORT){
+    alert(`La descarga solo está disponible del día 26 al ${DAYS_IN_MONTH} de cada mes.\n\nHoy es día ${DAY}. Disponible en ${26-DAY} días.`);
+    return;
+  }
+  if(!solicitudes.length){alert('No hay solicitudes para exportar.');return;}
+  showPin();
+}
+
+function showPin(){
+  document.getElementById('pin-modal').style.display='flex';
+  setTimeout(()=>document.getElementById('pin-input').focus(),100);
+  document.getElementById('pin-input').value='';
+  document.getElementById('pin-error').textContent='';
+  document.getElementById('pin-input').onkeydown=e=>{if(e.key==='Enter')validatePin();};
+}
+function closePin(){document.getElementById('pin-modal').style.display='none';}
+
+function validatePin(){
+  if(document.getElementById('pin-input').value===PASS){
+    closePin();
+    doExport();
+  } else {
+    document.getElementById('pin-error').textContent='Contraseña incorrecta.';
+    document.getElementById('pin-input').value='';
+    document.getElementById('pin-input').focus();
+  }
+}
+
+function doExport(){
+  const wb=XLSX.utils.book_new();
+  const grupos={};
+  solicitudes.forEach(s=>{const k=(s.no_count||'SinCuenta')+' - '+(s.name_count||'Sin Cuenta');if(!grupos[k])grupos[k]=[];grupos[k].push(s);});
+  Object.entries(grupos).forEach(([key,items])=>{
+    const rows=[['#','Fecha','Descripción','Categoría','Cantidad','Unidad','Supervisor','Name Count','No. Count','Notas']];
+    items.forEach((s,i)=>rows.push([i+1,s.fecha,s.descripcion,s.categoria,s.cantidad,s.unidad||'',s.supervisor,s.name_count||'',s.no_count||'',s.notas||'']));
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[{wch:4},{wch:12},{wch:50},{wch:14},{wch:8},{wch:8},{wch:18},{wch:28},{wch:10},{wch:30}];
+    XLSX.utils.book_append_sheet(wb,ws,key.slice(0,31));
+  });
+  const summary=[['No. Cuenta','Name Count','Categorías','Items','Total unidades']];
+  Object.entries(grupos).forEach(([k,items])=>summary.push([items[0].no_count||'',items[0].name_count||'',[...new Set(items.map(i=>i.categoria))].join(', '),items.length,items.reduce((s,i)=>s+i.cantidad,0)]));
+  const ws2=XLSX.utils.aoa_to_sheet(summary);ws2['!cols']=[{wch:12},{wch:28},{wch:22},{wch:8},{wch:14}];
+  XLSX.utils.book_append_sheet(wb,ws2,'RESUMEN');
+  XLSX.writeFile(wb,`Solicitud_${CURRENT_MONTH}_${T.getFullYear()}.xlsx`);
+}
+
+function exportStockXLSX(){
+  const wb=XLSX.utils.book_new();
+  const rows=[['Categoría','Material','Total Histórico','Stock Actual','Stock Mínimo','Estado']];
+  Object.entries(stockData).forEach(([cat,items])=>Object.values(items).forEach(item=>rows.push([catLabel(cat),item.desc,item.total,item.stock,item.minimo,item.minimo>0&&item.stock<=item.minimo?'BAJO MÍNIMO':item.stock>0?'OK':'Sin registrar'])));
+  const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:14},{wch:50},{wch:14},{wch:12},{wch:12},{wch:16}];
+  XLSX.utils.book_append_sheet(wb,ws,'Stock');
+  XLSX.writeFile(wb,'Stock_Consumibles_Hilton.xlsx');
+}
+
+function renderMesesLoaded(){
+  const meses=[...new Set(DB.map(d=>d.mes))];
+  const counts={};DB.forEach(d=>{counts[d.mes]=(counts[d.mes]||0)+1;});
+  document.getElementById('meses-loaded').innerHTML=meses.map(m=>`<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 16px"><div style="font-weight:600;font-size:13px;color:var(--text)">${m}</div><div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${counts[m]} registros</div></div>`).join('');
+}
+
+function handleFileUpload(input){
+  const file=input.files[0];if(!file)return;
+  const status=document.getElementById('upload-status');
+  status.innerHTML=`<div class="status info"><span class="status-icon">⏳</span>Procesando ${file.name}...</div>`;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      const skip=new Set(['COUNTS','DATA ENTRY','RESUME']);
+      const cLocal={};
+      if(wb.SheetNames.includes('COUNTS')){XLSX.utils.sheet_to_json(wb.Sheets['COUNTS'],{header:1}).forEach(r=>{if(r[2]&&r[3]) cLocal[String(r[2]).trim().replace(/\u00a0/g,'')]=r[3];});}
+      const fname=file.name.toUpperCase();
+      const mn=['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+      let mes=mn.find(m=>fname.includes(m))||fname.split('_')[0]||'NUEVO';
+      if(DB.some(d=>d.mes===mes)){status.innerHTML=`<div class="status error"><span class="status-icon">⚠</span>El mes "${mes}" ya está cargado.</div>`;return;}
+      let nuevos=0;
+      wb.SheetNames.filter(s=>!skip.has(s)).forEach(sn=>{
+        XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:null}).slice(3).forEach(row=>{
+          if(!row[1])return;
+          let cant=row[2],unidad=row[3],sup=row[4],nc=row[5];
+          if(typeof cant==='string'&&isNaN(parseFloat(cant))){unidad=cant;cant=row[3];sup=row[4];nc=row[5];}
+          const name_count=nc?String(nc).trim().replace(/\u00a0/g,''):null;
+          DB.push({mes,categoria:sn.replace('.','').trim(),descripcion:String(row[1]).trim(),cantidad:parseFloat(cant)||null,unidad:String(unidad||'').trim(),supervisor:String(sup||'').trim(),name_count,no_count:name_count?cLocal[name_count]||null:null});
+          nuevos++;
+        });
+      });
+      buildStockData();init();renderDashboard();
+      status.innerHTML=`<div class="status success"><span class="status-icon">✓</span>Cargados <strong>${nuevos} registros</strong> de <strong>${mes}</strong>.</div>`;
+    }catch(err){status.innerHTML=`<div class="status error"><span class="status-icon">✕</span>Error: ${err.message}</div>`;}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function runNormalization(){
+  const btn=document.getElementById('btn-norm');
+  btn.disabled=true;btn.textContent='⏳ Analizando...';
+  document.getElementById('norm-status').innerHTML=`<div class="status info"><span class="status-icon">⏳</span>Enviando descripciones a Claude... puede tardar 20–30 seg.</div>`;
+  const descs=[...new Set(DB.map(d=>d.descripcion).filter(Boolean))].slice(0,200);
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4000,messages:[{role:'user',content:`Analiza estas descripciones de materiales de mantenimiento de hotel y agrupa las que son el mismo producto con nombres distintos. NO agrupes variantes de tamaño/medida. Responde SOLO JSON: {"grupos":[{"nombre_canonico":"...","variantes":["..."]}]}\n${descs.map((d,i)=>i+1+'. '+d).join('\n')}`}]})});
+    const data=await resp.json();
+    const text=data.content?.map(c=>c.text||'').join('').trim();
+    let parsed;
+    try{parsed=JSON.parse(text.replace(/```json|```/g,'').trim());}
+    catch(e){document.getElementById('norm-status').innerHTML=`<div class="status error"><span class="status-icon">✕</span>Error al procesar respuesta.</div>`;btn.disabled=false;btn.textContent='✧ Re-analizar';return;}
+    normGroups=parsed.grupos.filter(g=>g.variantes&&g.variantes.length>1);
+    normGroups.forEach(g=>g.aprobado=true);
+    document.getElementById('norm-status').innerHTML=`<div class="status success"><span class="status-icon">✓</span>${normGroups.length} grupos encontrados. Revisa y aprueba.</div>`;
+    renderNormGroups();
+    document.getElementById('btn-apply').style.display='';
+    document.getElementById('btn-export-norm').style.display='';
+  }catch(err){document.getElementById('norm-status').innerHTML=`<div class="status error"><span class="status-icon">✕</span>Error: ${err.message}</div>`;}
+  btn.disabled=false;btn.textContent='✧ Re-analizar';
+}
+
+function renderNormGroups(){
+  const el=document.getElementById('norm-results');
+  el.innerHTML=normGroups.map((g,i)=>`<div class="norm-card" style="opacity:${g.aprobado===false?0.4:1}"><div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1"><div style="font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Nombre canónico</div><input type="text" value="${g.nombre_canonico}" onchange="normGroups[${i}].nombre_canonico=this.value" style="font-size:12px;font-weight:600;width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:4px 8px;margin-bottom:6px;font-family:'DM Sans',sans-serif"><div style="font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:3px">Variantes (${g.variantes.length})</div>${g.variantes.map(v=>`<div class="norm-var">→ ${v.length>80?v.slice(0,80)+'…':v}</div>`).join('')}</div><div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0"><button class="btn" style="padding:4px 10px;font-size:11px;background:${g.aprobado!==false?'rgba(34,201,138,.15)':'var(--bg3)'};color:${g.aprobado!==false?'var(--green)':'var(--text3)'};border-color:${g.aprobado!==false?'rgba(34,201,138,.3)':'var(--border)'}" onclick="normGroups[${i}].aprobado=true;renderNormGroups()">✓ OK</button><button class="btn" style="padding:4px 10px;font-size:11px;background:${g.aprobado===false?'rgba(240,77,77,.15)':'var(--bg3)'};color:${g.aprobado===false?'var(--red)':'var(--text3)'};border-color:${g.aprobado===false?'rgba(240,77,77,.3)':'var(--border)'}" onclick="normGroups[${i}].aprobado=false;renderNormGroups()">✕</button></div></div></div>`).join('');
+}
+
+function applyAllNorm(){
+  const approved=normGroups.filter(g=>g.aprobado!==false);
+  if(!approved.length){alert('No hay grupos aprobados.');return;}
+  let count=0;
+  approved.forEach(g=>g.variantes.forEach(v=>DB.forEach(d=>{if(d.descripcion===v&&d.descripcion!==g.nombre_canonico){d.descripcion=g.nombre_canonico;count++;}})));
+  buildStockData();init();renderDashboard();
+  document.getElementById('norm-status').innerHTML=`<div class="status success"><span class="status-icon">✓</span>${count} registros actualizados con ${approved.length} grupos.</div>`;
+}
+
+function exportNormXLSX(){
+  const wb=XLSX.utils.book_new();
+  const rows=[['Nombre Canónico','Variante','Aprobado']];
+  normGroups.forEach(g=>g.variantes.forEach(v=>rows.push([g.nombre_canonico,v,g.aprobado!==false?'Sí':'No'])));
+  const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:50},{wch:80},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,ws,'Normalización');
+  XLSX.writeFile(wb,'Normalizacion_Materiales.xlsx');
+}
+
+// Mobile sidebar
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('show');
+}
+function closeSidebar(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+}
+
+// Init
+init();
+renderDashboard();
+renderCatalog();
+renderSolicitudes();
+</script>
+</body>
+</html>
